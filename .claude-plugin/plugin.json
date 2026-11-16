@@ -1,5 +1,34 @@
 {
   "name": "backdrops",
-  "version": "0.1.0",
-  "description": "Switchable animated backdrops: forge, matrix, storm and night sky. Use /backdrop."
+  "version": "0.2.0",
+  "description": "Switchable animated backdrops: forge, matrix, storm and night sky. Use /backdrop.",
+  "userConfig": {
+    "changeEvery": {
+      "type": "string",
+      "title": "Matrix: change interval",
+      "description": "How often a changing character in the matrix backdrop swaps to a new one",
+      "default": "2s",
+      "options": [
+        "1s",
+        "2s",
+        "3s",
+        "5s",
+        "10s"
+      ]
+    },
+    "changeShare": {
+      "type": "string",
+      "title": "Matrix: share that changes",
+      "description": "Share of the bright characters in the matrix backdrop that keep changing",
+      "default": "20%",
+      "options": [
+        "5%",
+        "10%",
+        "20%",
+        "35%",
+        "50%",
+        "75%"
+      ]
+    }
+  }
 }

@@ -1,7 +1,9 @@
 import type { EngineInterface, Register, Timer } from 'claude-code'
 
 import { COLORS } from './palettes.js'
-import { ORDER, SCENES } from './scenes.js'
+import { matrix, ORDER, SCENES as DEFAULT_SCENES } from './scenes.js'
+
+let SCENES = DEFAULT_SCENES
 
 const KEY = 'current'
 const DEFAULT = 'forge'
@@ -36,7 +38,12 @@ async function apply($: EngineInterface, name: string) {
   return set
 }
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  // Pickers from userConfig: '2s' and '20%' style strings; an unknown value falls back to the default.
+  const seconds = parseFloat(String(options.changeEvery)) || 2
+  const share = (parseFloat(String(options.changeShare)) || 20) / 100
+  SCENES = { ...DEFAULT_SCENES, matrix: { ...DEFAULT_SCENES.matrix!, render: matrix(share, seconds) } }
+
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'backdrop',

@@ -114,14 +114,14 @@ ${embers.join('')}
 /* ───────────────────────────── MATRIX ───────────────────────────── */
 // A wide canvas, so a desktop window shows the whole field of code, not a magnified slice.
 // No scanlines, scan beam or tear bars: only falling code.
-function matrix(): (tick: number) => string {
+export function matrix(swap = 0.2, seconds = 2): (tick: number) => string {
   const r = rng(5)
   const pool = [...'01ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄ789Z:.=*+-<>']
   const OP = ['.06', '.1', '.16', '.24', '.34', '.46', '.6', '.78']
   const W = 1200
   const H = 800
-  const SWAP = 0.2 // share of body characters that change
-  const PHASES = 4 // a tick is 500 ms, so each swapper changes every 4 ticks = 2 s, staggered
+  const SWAP = swap // share of body characters that change
+  const PHASES = Math.max(1, Math.round(seconds * 2)) // a tick is 500 ms, so each swapper changes every `seconds`, staggered
   const GLYPHS = 8
 
   type Cell = { ch: string; fill: string; op: string; seq?: string[]; phase?: number }

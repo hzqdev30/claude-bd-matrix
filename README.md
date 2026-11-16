@@ -45,8 +45,23 @@ claude plugin install backdrops --marketplace hzqdev30/claude-bd-matrix
 | `/backdrop list` | List the backdrops |
 | `/backdrop off` | Remove the backdrop. New sessions stay off until you pick again |
 
+## Customize
+
+The matrix backdrop has two settings:
+
+| Setting | What it does | Choices | Default |
+| :-- | :-- | :-- | :-- |
+| **Change interval** (`changeEvery`) | How often a changing character swaps to a new one | `1s` `2s` `3s` `5s` `10s` | `2s` |
+| **Share that changes** (`changeShare`) | How much of the bright code keeps changing: low is calm, high is busy | `5%` `10%` `20%` `35%` `50%` `75%` | `20%` |
+
+Set them on the screen shown while you install the plugin. To change them later, use the plugin's settings row (`/config` in a terminal session). The values are stored under `pluginConfigs` in your `settings.json`, and a change reloads the mod.
+
+Changes apply the next time the matrix backdrop is drawn, so run `/backdrop matrix` once after a change to see it.
+
+Characters swap on a 0.5 second grid, so the shortest interval is 1s. Only the bright front columns change. The dim back columns stay still, which is why `20%` moves roughly one in ten of all characters on screen.
+
 ## Notes
 
 - Your last pick is saved and applied at the start of every new session.
 - Backdrops draw on the desktop and mobile apps only, not in a plain terminal.
-- Scenes with motion redraw twice a second. Rain, embers and stars use CSS animation and respect reduced-motion settings.
+- Moving scenes redraw twice a second. Rain, embers and stars use CSS animation and respect reduced-motion settings.
