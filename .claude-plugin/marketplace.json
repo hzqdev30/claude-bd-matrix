@@ -1,0 +1,5 @@
+{
+  "name": "claude-bd-matrix",
+  "owner": { "name": "hzqdev30" },
+  "plugins": [{ "name": "backdrops", "source": "./" }]
+}
