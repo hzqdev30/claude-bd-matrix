@@ -1,4 +1,4 @@
-# backdrops
+# Matrix Backdrop
 
 Animated backdrops for the Claude desktop app: forge, matrix rain, storm and night sky.
 Your last pick is remembered and applied to every new session.
