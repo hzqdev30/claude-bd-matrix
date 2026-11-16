@@ -1,4 +1,4 @@
-<h1 align="center">backdrops</h1>
+<h1 align="center">Matrix Backdrop</h1>
 <p align="center">Animated backdrops for the Claude desktop app.<br>Pick one, and it comes back on every new session.</p>
 
 <p align="center"><img src="docs/matrix.gif" alt="Matrix rain backdrop" width="720"></p>
