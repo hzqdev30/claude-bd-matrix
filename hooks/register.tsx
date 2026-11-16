@@ -1,30 +1,15 @@
-import type { EngineInterface, Register, Timer } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
 import { COLORS } from './palettes.js'
-import { matrix, ORDER, SCENES as DEFAULT_SCENES } from './scenes.js'
+import { matrix, ORDER, type Glitch, SCENES as DEFAULT_SCENES } from './scenes.js'
 
 let SCENES = DEFAULT_SCENES
 
+// Matrix streams per zone (left, centre, right).
+const DENSITY: Record<string, number> = { sparse: 2, normal: 3, dense: 4 }
+
 const KEY = 'current'
 const DEFAULT = 'forge'
-
-// The app draws a backdrop as a still picture, so a scene that changes is redrawn on a slow timer.
-const TICK_MS = 500
-let tick = 0
-let timer: Timer | undefined
-
-function startTimer($: EngineInterface) {
-  timer?.cancel()
-  timer = $.clock.every(TICK_MS, () => {
-    tick += 1
-    $.ui.invalidate('ui.render')
-  })
-}
-
-function stopTimer() {
-  timer?.cancel()
-  timer = undefined
-}
 
 async function apply($: EngineInterface, name: string) {
   const set = await $.theme.set({
@@ -33,8 +18,6 @@ async function apply($: EngineInterface, name: string) {
     overrideColorScheme: 'dark',
   })
   await $.store.set(KEY, name)
-  if (SCENES[name].render) startTimer($)
-  else stopTimer()
   return set
 }
 
@@ -42,7 +25,8 @@ export const register: Register = (on, options) => {
   // Pickers from userConfig: '2s' and '20%' style strings; an unknown value falls back to the default.
   const seconds = parseFloat(String(options.changeEvery)) || 2
   const share = (parseFloat(String(options.changeShare)) || 20) / 100
-  SCENES = { ...DEFAULT_SCENES, matrix: { ...DEFAULT_SCENES.matrix!, render: matrix(share, seconds) } }
+  const glitch = (['off', 'low', 'medium', 'high'].includes(String(options.glitch)) ? options.glitch : 'medium') as Glitch
+  SCENES = { ...DEFAULT_SCENES, matrix: { ...DEFAULT_SCENES.matrix!, svg: matrix(share, seconds, glitch, DENSITY[String(options.density)] ?? DENSITY.normal!) } }
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -65,7 +49,6 @@ export const register: Register = (on, options) => {
     if (arg === 'list') return { text: `Backdrops:\n${list}\n\nUse /backdrop <name>, /backdrop next, or /backdrop off.` }
 
     if (arg === 'off') {
-      stopTimer()
       await $.theme.clear()
       await $.store.set(KEY, 'off')
       return { text: 'Backdrop removed.' }
@@ -87,6 +70,6 @@ export const register: Register = (on, options) => {
     if (e.props.plugin !== $.plugin.name || !scene) return next(e)
     if (e.surface !== 'desktop' && e.surface !== 'mobile') return next(e)
     const { Svg } = $.ui.resolve(e)
-    return <Svg source={scene.render ? scene.render(tick) : scene.svg!} alt={scene.label} isInteractive />
+    return <Svg source={scene.svg!} alt={scene.label} isInteractive />
   })
 }

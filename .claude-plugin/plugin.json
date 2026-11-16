@@ -1,6 +1,6 @@
 {
   "name": "backdrops",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Switchable animated backdrops: forge, matrix, storm and night sky. Use /backdrop.",
   "userConfig": {
     "changeEvery": {
@@ -28,6 +28,29 @@
         "35%",
         "50%",
         "75%"
+      ]
+    },
+    "glitch": {
+      "type": "string",
+      "title": "Matrix: glitch",
+      "description": "Glitch bursts on the matrix backdrop: sideways slices with a red and cyan edge. Off keeps the calm 2 frames a second",
+      "default": "medium",
+      "options": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "density": {
+      "type": "string",
+      "title": "Matrix: streams",
+      "description": "How many streams of code fall on each of the left, centre and right: 2, 3 or 4",
+      "default": "normal",
+      "options": [
+        "sparse",
+        "normal",
+        "dense"
       ]
     }
   }

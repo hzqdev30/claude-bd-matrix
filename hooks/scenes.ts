@@ -114,92 +114,89 @@ ${embers.join('')}
 /* ───────────────────────────── MATRIX ───────────────────────────── */
 // A wide canvas, so a desktop window shows the whole field of code, not a magnified slice.
 // No scanlines, scan beam or tear bars: only falling code.
-export function matrix(swap = 0.2, seconds = 2): (tick: number) => string {
+export type Glitch = 'off' | 'low' | 'medium' | 'high'
+// How far the red and cyan ghosts sit from a character that has just swapped (px), and how long they last (s).
+const GLITCH = { low: [3, 0.4], medium: [5, 0.6], high: [8, 0.9] } as const
+const esc = (g: string) => (g === '<' ? '&lt;' : g === '>' ? '&gt;' : g)
+const hash = (n: number) => {
+  let x = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b)
+  x ^= x >>> 13
+  x = Math.imul(x, 0xc2b2ae35)
+  x ^= x >>> 16
+  return (x >>> 0) / 4294967296
+}
+
+// A handful of code streams fall down the left, centre and right, and the picture animates
+// itself with CSS: nothing redraws it. A swap is a short cross-fade and, with glitch on, a red
+// and a cyan ghost that fade out within a fraction of a second.
+export function matrix(swap = 0.2, seconds = 2, glitch: Glitch = 'off', perZone = 3): string {
   const r = rng(5)
   const pool = [...'01ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄ789Z:.=*+-<>']
-  const OP = ['.06', '.1', '.16', '.24', '.34', '.46', '.6', '.78']
+  const OP = ['.08', '.14', '.22', '.32', '.45', '.6', '.75', '.88']
   const W = 1200
   const H = 800
-  const SWAP = swap // share of body characters that change
-  const PHASES = Math.max(1, Math.round(seconds * 2)) // a tick is 500 ms, so each swapper changes every `seconds`, staggered
-  const GLYPHS = 8
+  const SIZE = 17
+  const STEP = SIZE + 4
+  const VARIANTS = 3 // glyphs a swapping cell cycles through
+  const PHASES = 5 // swaps are spread over this many moments in a cycle
+  const CYCLE = VARIANTS * seconds
+  const fade = Math.min(0.15, seconds / 4)
+  const fadeP = (fade / CYCLE) * 100
+  const winP = 100 / VARIANTS
+  const [offset, ghostSeconds] = glitch === 'off' ? [0, 0] : GLITCH[glitch]
+  const ghostP = (ghostSeconds / CYCLE) * 100
+  const attrs = `font-family="monospace" font-size="${SIZE}" text-anchor="middle"`
+  const pick = () => pool[Math.floor(r() * pool.length)]!
 
-  type Cell = { ch: string; fill: string; op: string; seq?: string[]; phase?: number }
-  type Column = { x: number; size: number; base: number; dim: number; cells: Cell[] }
+  // Left, centre and right: evenly spread inside each zone.
+  const spread = (from: number, to: number, n: number) => Array.from({ length: n }, (_, i) => Math.round(n === 1 ? (from + to) / 2 : from + ((to - from) * i) / (n - 1)))
+  const xs = [...spread(70, 330, perZone), ...spread(500, 700, perZone), ...spread(870, 1130, perZone)]
 
-  const col = (x: number, size: number, len: number, dim: number, swap: number, base: number): Column => {
-    const cells: Cell[] = []
+  let body = ''
+  xs.forEach((x, ci) => {
+    const len = 12 + Math.floor(r() * 7)
+    const fall = 10 + r() * 8 // seconds for one trip down the screen
+    const delay = -r() * fall
+    let still = ''
+    let swaps = ''
+    let ghosts = ''
     for (let i = 0; i < len; i++) {
-      let fill = '#00ff66'
-      let op = OP[Math.min(7, Math.floor((i / (len - 1)) * 8))]
-      if (i === len - 1) {
-        fill = '#e6fff0'
-        op = '1'
-      } else if (i === len - 2) {
-        fill = '#8dffb8'
-        op = '.9'
+      const y = i * STEP
+      const head = i === len - 1
+      const op = head ? '1' : i === len - 2 ? '.95' : OP[Math.min(7, Math.floor((i / (len - 2)) * 8))]!
+      const fill = head ? '#e6fff0' : i === len - 2 ? '#8dffb8' : '#00ff66'
+      if (!head && i < len - 2 && r() < swap) {
+        const phase = Math.floor(hash(ci * 977 + i * 13) * PHASES)
+        for (let v = 0; v < VARIANTS; v++) {
+          const g = esc(pick())
+          const d = (((v * seconds + (phase * seconds) / PHASES) % CYCLE) - CYCLE).toFixed(3)
+          swaps += `<text class="m" style="animation-delay:${d}s" x="${x}" y="${y}" fill="#00ff66" fill-opacity="${op}" ${attrs}>${g}</text>`
+          if (offset) {
+            // One element per ghost, red to the left and cyan to the right, so there are fewer things to animate.
+            ghosts += `<text class="g" style="animation-delay:${d}s" y="${y}" ${attrs}><tspan x="${x - offset}" fill="#ff2a55">${g}</tspan><tspan x="${x + offset}" fill="#22f0ff">${g}</tspan></text>`
+          }
+        }
+        continue
       }
-      const cell: Cell = { ch: pool[Math.floor(r() * pool.length)], fill, op }
-      if (i < len - 2 && r() < swap) {
-        cell.seq = Array.from({ length: GLYPHS }, () => pool[Math.floor(r() * pool.length)])
-        cell.phase = Math.floor(r() * PHASES)
-      }
-      cells.push(cell)
+      still += `<text x="${x}" y="${y}" fill="${fill}" fill-opacity="${op}" ${attrs}>${esc(pick())}</text>`
     }
-    return { x: Math.round(x), size, base: Math.round(base), dim, cells }
-  }
+    body += `<g class="f" style="animation-duration:${fall.toFixed(2)}s;animation-delay:${delay.toFixed(2)}s">${still}${swaps}${ghosts}</g>`
+  })
 
-  // Every column sits in a fixed lane and each lane is filled top to bottom with
-  // streams that never touch, so nothing overlaps and no corner stays empty. The dim
-  // small lanes sit halfway between the bright ones, clear of their glyphs.
-  const LANE = 27
-  const lane = (x: number, size: number, dim: number, swap: number, lenMin: number, lenVar: number, gapMin: number, gapVar: number): Column[] => {
-    const out: Column[] = []
-    const step = size + 3
-    let y = -r() * 160
-    while (y < H) {
-      const len = lenMin + Math.floor(r() * lenVar)
-      out.push(col(x, size, len, dim, swap, y))
-      y += (len - 1) * step + gapMin + r() * gapVar + step
-    }
-    return out
-  }
-
-  const back: Column[] = []
-  for (let i = 0; i < 22; i++) back.push(...lane(12 + LANE * (2 * i) + LANE / 2, 10, 0.4, 0, 10, 6, 90, 220))
-  const front: Column[] = []
-  for (let i = 0; i < 44; i++) front.push(...lane(12 + i * LANE, 15, 1, SWAP, 8, 6, 70, 180))
-
-  // One <text> per stream: its x and dy lists place every glyph, so each <tspan> only
-  // carries its own opacity (and a colour for the two bright head glyphs).
-  const draw = (c: Column, tick: number): string => {
-    const step = c.size + 3
-    const n = c.cells.length
-    let tsp = ''
-    c.cells.forEach(cell => {
-      let ch = cell.ch
-      if (cell.seq) {
-        // glyph advances once every PHASES ticks, offset by the cell's own phase
-        const k = tick < cell.phase! ? 0 : Math.floor((tick - cell.phase!) / PHASES) + 1
-        ch = cell.seq[k % GLYPHS]
-      }
-      const colour = cell.fill === '#00ff66' ? '' : ` fill="${cell.fill}"`
-      tsp += `<tspan${colour} fill-opacity="${cell.op}">${ch}</tspan>`
-    })
-    const xs = Array(n).fill(c.x).join(' ')
-    const dys = Array.from({ length: n }, (_, i) => (i === 0 ? 0 : step)).join(' ')
-    return `<text x="${xs}" y="${c.base}" dy="${dys}" opacity="${c.dim}" fill="#00ff66" font-family="monospace" font-size="${c.size}" text-anchor="middle">${tsp}</text>`
-  }
-
-  const head = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice">
+<style>
+.f{animation:fall 12s linear infinite;will-change:transform}
+text{text-rendering:optimizeSpeed}
+.m{opacity:0;animation:m ${CYCLE}s linear infinite}
+.g{opacity:0;animation:g ${CYCLE}s linear infinite}
+@keyframes fall{from{transform:translateY(-${20 * STEP}px)}to{transform:translateY(${H + 40}px)}}
+@keyframes m{0%{opacity:0}${fadeP.toFixed(3)}%{opacity:1}${winP.toFixed(3)}%{opacity:1}${(winP + fadeP).toFixed(3)}%{opacity:0}100%{opacity:0}}
+@keyframes g{0%{opacity:1;transform:translateX(0)}${(ghostP * 0.25).toFixed(3)}%{opacity:1;transform:translateX(3px)}${(ghostP * 0.5).toFixed(3)}%{opacity:.8;transform:translateX(-3px)}${(ghostP * 0.75).toFixed(3)}%{opacity:.4;transform:translateX(1px)}${ghostP.toFixed(3)}%{opacity:0;transform:translateX(0)}100%{opacity:0}}
+</style>
 <defs>
 <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#001a0e"/></linearGradient>
-<radialGradient id="vig" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#000" stop-opacity=".5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
 </defs>
-<rect width="${W}" height="${H}" fill="url(#bg)"/>`
-  const tail = `<ellipse cx="${W / 2}" cy="${H / 2}" rx="${W * 0.3}" ry="${H * 0.4}" fill="url(#vig)"/></svg>`
-
-  return tick => head + back.map(c => draw(c, tick)).join('') + front.map(c => draw(c, tick)).join('') + tail
+<rect width="${W}" height="${H}" fill="url(#bg)"/>${body}</svg>`
 }
 
 /* ───────────────────────────── STORM ───────────────────────────── */
@@ -352,7 +349,7 @@ ${pines.join('')}
 
 export const SCENES: Record<string, Scene> = {
   forge: { label: 'Forge: embers, lava glow and smoke', svg: forge(), glass: { blur: 8, tint: '#120704', opacity: 0.35 } },
-  matrix: { label: 'Matrix: green code with changing characters', render: matrix(), glass: { blur: 8, tint: '#000a05', opacity: 0.4 } },
+  matrix: { label: 'Matrix: green code with changing characters', svg: matrix(), glass: { blur: 8, tint: '#000a05', opacity: 0.4 } },
   storm: { label: 'Storm: rain, lightning and dark clouds', svg: storm(), glass: { blur: 8, tint: '#080c12', opacity: 0.35 } },
   'night-sky': { label: 'Night sky: stars and shooting stars', svg: nightSky(), glass: { blur: 8, tint: '#070a22', opacity: 0.35 } },
 }
